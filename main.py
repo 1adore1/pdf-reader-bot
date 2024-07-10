@@ -72,14 +72,6 @@ async def start_command(message: types.Message):
         await message.answer('Привет! Здесь ты можешь удобно читать книги.')
 
 
-@dp.message(Command('start'))
-async def start_command(message: types.Message):
-    chat_id = message.chat.id
-    if chat_id in users_books:
-        await message.answer('Список загруженных книг: ', reply_markup=get_library_keyboard())
-    else:
-        await message.answer('Привет! Здесь ты можешь удобно читать книги.')
-
 @dp.message(F.document.mime_type == 'application/pdf')
 async def handle_new_pdf(message: types.Message):
     chat_id = message.chat.id
