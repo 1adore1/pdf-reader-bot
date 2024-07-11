@@ -14,8 +14,8 @@ logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-users_books = {}
-books = {}
+users_files = {}
+files_pages = {}
 
 # func for extracting text from pdf
 def extract_text_from_pdf(pdf_file):
@@ -49,9 +49,9 @@ def load_data(filename):
         return {}
 
 
-users_books = load_data('users_books.json')
-users_books = {int(k): v for k, v in users_books.items()}
-books = load_data('books.json')
+users_files = load_data('users_files.json')
+users_files = {int(k): v for k, v in users_files.items()}
+files_pages = load_data('files_pages.json')
 
 
 # dispatcher for command /start
@@ -73,7 +73,7 @@ def get_start_keyboard(user_id):
     builder = InlineKeyboardBuilder()
     builder.add(InlineKeyboardButton(text='Load file', callback_data='load__file'))
     try:
-        if users_books[user_id] is not None:
+        if users_files[user_id] is not None:
             builder.add(InlineKeyboardButton(text='Downloads', callback_data='downloads'))
     except:
         pass
@@ -84,8 +84,8 @@ def get_start_keyboard(user_id):
 def get_downloads_keyboard(user_id):
     builder = InlineKeyboardBuilder()
     builder.add(InlineKeyboardButton(text='Back to start', callback_data='back__start'))
-    for book in users_books[user_id]:
-        builder.add(InlineKeyboardButton(text=book.split('.')[0], callback_data=f'book__{book}')) 
+    for file in users_files[user_id]:
+        builder.add(InlineKeyboardButton(text=file.split('.')[0], callback_data=f'file__{file}')) 
     return builder.as_markup()
 
 
@@ -122,7 +122,7 @@ async def handle_new_pdf(message: types.Message):
     user_id = message.chat.id
     filename = message.document.file_name
 
-    if user_id in users_books and filename in users_books[user_id]:
+    if user_id in users_files and filename in users_files[user_id]:
         # await bot.delete_message(chat_id=user_id, message_id=message.message_id - 1)
         await message.answer('File already loaded. Downloads: ', reply_markup=get_downloads_keyboard(user_id))
     else:
@@ -132,15 +132,15 @@ async def handle_new_pdf(message: types.Message):
 
         text = extract_text_from_pdf(pdf_file)
         pages = split_text_into_pages(text)
-        if user_id not in users_books:
-            users_books[user_id] = []
-        users_books[user_id].append(filename)
-        books[filename] = pages
+        if user_id not in users_files:
+            users_files[user_id] = []
+        users_files[user_id].append(filename)
+        files_pages[filename] = pages
         # await bot.delete_message(chat_id=user_id, message_id=message.message_id - 1)
         await bot.edit_message_text(filename, chat_id=user_id, message_id=message.message_id + 1)
         await message.answer(pages[0], reply_markup=get_nav_keyboard(0, len(pages), filename))
-        save_data(users_books, 'users_books.json') 
-        save_data(books, 'books.json')
+        save_data(users_files, 'users_files.json') 
+        save_data(files_pages, 'files_pages.json')
 
 
 # dispatcher for button "load file"
@@ -168,13 +168,13 @@ async def downloads(callback_query: types.CallbackQuery):
                                 reply_markup=get_downloads_keyboard(user_id))
 
 
-# dispatcher for button "select book"
-@dp.callback_query(F.data.startswith('book__'))
-async def select_book(callback_query: types.CallbackQuery):
+# dispatcher for button "select file"
+@dp.callback_query(F.data.startswith('file__'))
+async def select_file(callback_query: types.CallbackQuery):
     user_id = callback_query.message.chat.id
     data = callback_query.data.split('__')
     filename = data[1]
-    pages = books[filename]
+    pages = files_pages[filename]
     await bot.edit_message_text(pages[0], chat_id=user_id, message_id=callback_query.message.message_id,
                                 reply_markup=get_nav_keyboard(0, len(pages), filename))
 
@@ -186,7 +186,7 @@ async def nav_file(callback_query: types.CallbackQuery):
 
     data = callback_query.data.split('__')
     action, filename, page_index = data[0], data[1], int(data[2])
-    pages = books[filename]
+    pages = files_pages[filename]
 
     if action == 'prev':
         if page_index - 1 < 0:
@@ -204,9 +204,9 @@ async def nav_file(callback_query: types.CallbackQuery):
                                 reply_markup=get_nav_keyboard(new_index, len(pages), filename))
 
 
-# dispatcher for button "delete book"
+# dispatcher for button "delete file"
 @dp.callback_query(F.data.startswith('delete__'))
-async def delete_book(callback_query: types.CallbackQuery):
+async def delete_file(callback_query: types.CallbackQuery):
     user_id = callback_query.message.chat.id
     data = callback_query.data.split('__')
     filename, page_index = data[1], int(data[2])
@@ -220,9 +220,9 @@ async def confirm_delete(callback_query: types.CallbackQuery):
     user_id = callback_query.message.chat.id
     data = callback_query.data.split('__')
     filename = data[2]
-    ind = users_books[user_id].index(filename)
-    del users_books[user_id][ind]
-    del books[filename]
+    ind = users_files[user_id].index(filename)
+    del users_files[user_id][ind]
+    del files_pages[filename]
     await bot.edit_message_text('Downloads:', chat_id=user_id, message_id=callback_query.message.message_id,
                                 reply_markup=get_downloads_keyboard(user_id))
 
@@ -233,7 +233,7 @@ async def cancel_delete(callback_query: types.CallbackQuery):
     user_id = callback_query.message.chat.id
     data = callback_query.data.split('__')
     filename, page_index = data[2], int(data[3])
-    pages = books[filename]
+    pages = files_pages[filename]
     text = pages[page_index]
     await bot.edit_message_text(text, chat_id=user_id, message_id=callback_query.message.message_id,
                                 reply_markup=get_nav_keyboard(page_index, len(pages), filename)) 
