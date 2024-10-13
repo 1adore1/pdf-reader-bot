@@ -1,5 +1,5 @@
 # PDF Reader Telegram Bot
-![image](https://github.com/user-attachments/assets/adb97071-7e06-4ff0-a2ee-ce8a0151c7d3)
+https://github.com/user-attachments/assets/89eea885-362b-4d96-b81f-7e913538ea6b
 ### Overview
 [```@PDFNavigatorBot```](https://t.me/PDFNavigatorBot)
 
